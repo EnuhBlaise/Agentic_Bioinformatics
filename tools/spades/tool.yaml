@@ -1,0 +1,28 @@
+id: spades
+name: SPAdes assembler
+category: assembly
+description: De novo genome assembly from Illumina reads (use --isolate for bacterial isolates, --meta for metagenomes).
+binary: spades.py
+conda: bioconda::spades=3.15.5
+command:
+  - spades.py
+  - if: isolate
+    args: ["--isolate"]
+  - "-1"
+  - "{reads_r1}"
+  - "-2"
+  - "{reads_r2}"
+  - -t
+  - "{threads}"
+  - -m
+  - "{memory_gb}"
+  - -o
+  - "{outdir}"
+inputs:
+  reads_r1: {type: path, required: true}
+  reads_r2: {type: path, required: true}
+  isolate: {type: bool, default: true}
+  memory_gb: {type: int, default: 16}
+outputs:
+  contigs: "{outdir}/contigs.fasta"
+  scaffolds: "{outdir}/scaffolds.fasta"

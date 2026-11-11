@@ -1,0 +1,55 @@
+# Config keys: samplesheet, genome_dir, annotation, strandedness, outdir
+import csv
+OUT = config["outdir"]
+SAMPLES = {}
+with open(config["samplesheet"]) as fh:
+    for row in csv.DictReader(fh, delimiter="\t"):
+        SAMPLES[row["sample"]] = (row["r1"], row.get("r2") or "")
+PAIRED = all(r2 for _, r2 in SAMPLES.values())
+
+rule all:
+    input: f"{OUT}/counts.tsv"
+
+rule fastp:
+    input: lambda w: [p for p in SAMPLES[w.s] if p]
+    output:
+        r1=f"{OUT}/trim/{{s}}_R1.fastq.gz",
+        r2=f"{OUT}/trim/{{s}}_R2.fastq.gz" if PAIRED else [],
+        js=f"{OUT}/qc/{{s}}.fastp.json"
+    threads: 4
+    conda: "envs/fastp.yaml"
+    params: pe=lambda w, output: f"-I {SAMPLES[w.s][1]} -O {output.r2}" if PAIRED else ""
+    shell: "fastp -i {input[0]} -o {output.r1} {params.pe} -j {output.js} -h /dev/null -w {threads}"
+
+rule star:
+    input:
+        r1=f"{OUT}/trim/{{s}}_R1.fastq.gz",
+        r2=f"{OUT}/trim/{{s}}_R2.fastq.gz" if PAIRED else []
+    output: bam=f"{OUT}/bam/{{s}}/Aligned.sortedByCoord.out.bam", log=f"{OUT}/qc/{{s}}.Log.final.out"
+    threads: 8
+    conda: "envs/star.yaml"
+    params: prefix=lambda w: f"{OUT}/bam/{w.s}/"
+    shell:
+        "STAR --runThreadN {threads} --genomeDir {config[genome_dir]} --readFilesIn {input.r1} {input.r2} "
+        "--readFilesCommand zcat --outSAMtype BAM SortedByCoordinate --outFileNamePrefix {params.prefix} "
+        "&& cp {params.prefix}Log.final.out {output.log}"
+
+rule featurecounts:
+    input: expand(f"{OUT}/bam/{{s}}/Aligned.sortedByCoord.out.bam", s=SAMPLES)
+    output: raw=f"{OUT}/featurecounts.txt", summary=f"{OUT}/qc/featurecounts.txt.summary"
+    threads: 8
+    conda: "envs/subread.yaml"
+    params: pe="-p --countReadPairs" if PAIRED else ""
+    shell:
+        "featureCounts -T {threads} -s {config[strandedness]} {params.pe} -a {config[annotation]} "
+        "-o {output.raw} {input} && cp {output.raw}.summary {output.summary}"
+
+rule matrix:
+    input: f"{OUT}/featurecounts.txt"
+    output: f"{OUT}/counts.tsv"
+    run:
+        import pandas as pd
+        df = pd.read_csv(input[0], sep="\t", comment="#", index_col=0).iloc[:, 5:]
+        df.columns = [c.split("/bam/")[1].split("/")[0] if "/bam/" in c else c for c in df.columns]
+        df.index.name = "gene"
+        df.to_csv(output[0], sep="\t")

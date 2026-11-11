@@ -1,0 +1,22 @@
+id: quast
+name: QUAST
+category: qc
+description: Assembly quality metrics (N50, contig count, total length; misassemblies when a reference is given).
+binary: quast.py
+conda: bioconda::quast=5.2.0
+command:
+  - quast.py
+  - "{contigs}"
+  - -o
+  - "{outdir}"
+  - -t
+  - "{threads}"
+  - if: reference
+    args: ["-r", "{reference}"]
+inputs:
+  contigs: {type: path, required: true}
+  reference: {type: path}
+  expected_genome_size: {type: int, description: "bp; used only by the QC judgment, not passed to QUAST"}
+outputs:
+  report: "{outdir}/report.tsv"
+qc_parser: quast

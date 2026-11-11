@@ -1,0 +1,22 @@
+openapi: 3.0.0
+info: {title: NCBI E-utilities (subset), version: "1.0"}
+servers:
+  - url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils
+paths:
+  /esearch.fcgi:
+    get:
+      operationId: esearch
+      summary: Search an Entrez database (e.g. pubmed, gene) and return matching UIDs
+      parameters:
+        - {name: db, in: query, required: true, schema: {type: string, default: pubmed}}
+        - {name: term, in: query, required: true, schema: {type: string}}
+        - {name: retmax, in: query, schema: {type: integer, default: 20}}
+        - {name: retmode, in: query, schema: {type: string, default: json}}
+  /esummary.fcgi:
+    get:
+      operationId: esummary
+      summary: Document summaries for a comma-separated list of UIDs
+      parameters:
+        - {name: db, in: query, required: true, schema: {type: string}}
+        - {name: id, in: query, required: true, schema: {type: string}}
+        - {name: retmode, in: query, schema: {type: string, default: json}}

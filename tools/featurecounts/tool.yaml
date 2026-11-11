@@ -1,0 +1,28 @@
+id: featurecounts
+name: featureCounts (subread)
+category: quantification
+description: Count reads per gene from BAM files with a GTF annotation. Strandedness 0/1/2 must match the library prep.
+binary: featureCounts
+conda: bioconda::subread=2.0.6
+command:
+  - featureCounts
+  - -T
+  - "{threads}"
+  - -s
+  - "{strandedness}"
+  - if: paired
+    args: ["-p", "--countReadPairs"]
+  - -a
+  - "{annotation}"
+  - -o
+  - "{outdir}/counts.txt"
+  - "{bam}"
+inputs:
+  annotation: {type: path, required: true}
+  bam: {type: path, required: true}
+  strandedness: {type: int, default: 0}
+  paired: {type: bool, default: false}
+outputs:
+  counts: "{outdir}/counts.txt"
+  summary: "{outdir}/counts.txt.summary"
+qc_parser: featurecounts

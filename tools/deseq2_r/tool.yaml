@@ -1,0 +1,26 @@
+id: deseq2_r
+name: DESeq2 (R/Bioconductor)
+category: analysis
+description: Reference DESeq2 via Rscript with a design formula including covariates. Requires R with DESeq2 installed.
+binary: Rscript
+conda: bioconda::bioconductor-deseq2=1.42.0
+command:
+  - Rscript
+  - "{script}"
+  - "{counts}"
+  - "{metadata}"
+  - "{design}"
+  - "{condition}"
+  - "{test_level}"
+  - "{ref_level}"
+  - "{outdir}"
+inputs:
+  script: {type: path, default: "{tool_dir}/run_deseq2.R"}
+  counts: {type: path, required: true}
+  metadata: {type: path, required: true}
+  design: {type: str, required: true, description: "e.g. '~ batch + condition'"}
+  condition: {type: str, required: true}
+  test_level: {type: str, required: true}
+  ref_level: {type: str, required: true}
+outputs:
+  results: "{outdir}/deseq2_results.tsv"

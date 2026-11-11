@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bioagent"
+version = "0.1.0"
+description = "Modular research-grade bioinformatics agent: LangGraph cognitive graph + Snakemake/Nextflow compute graph, with typed state, judgment nodes, HITL and provenance."
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "scipy>=1.10",
+  "langgraph>=0.6",
+  "langgraph-checkpoint-sqlite>=2.0",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "websockets>=12",
+  "reportlab>=4.0",
+]
+
+[project.optional-dependencies]
+chroma = ["chromadb>=0.5"]
+deseq2 = ["pydeseq2>=0.4"]
+phoenix = ["arize-phoenix-otel>=0.6", "opentelemetry-sdk>=1.24"]
+wandb = ["wandb>=0.17"]
+workflows = ["snakemake>=8.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+bioagent = "bioagent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["bioagent*"]
+
+[tool.setuptools.package-data]
+bioagent = ["api/static/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,30 @@
+id: salmon_quant
+name: Salmon quant
+category: quantification
+description: Transcript-level quantification against a salmon index (selective alignment), auto library type.
+binary: salmon
+conda: bioconda::salmon=1.10.3
+command:
+  - salmon
+  - quant
+  - -i
+  - "{index}"
+  - -l
+  - A
+  - if: reads_r2
+    args: ["-1", "{reads_r1}", "-2", "{reads_r2}"]
+  - if: single_end
+    args: ["-r", "{reads_r1}"]
+  - -p
+  - "{threads}"
+  - --validateMappings
+  - -o
+  - "{outdir}"
+inputs:
+  index: {type: path, required: true}
+  reads_r1: {type: path, required: true}
+  reads_r2: {type: path}
+  single_end: {type: bool, default: false}
+outputs:
+  quant: "{outdir}/quant.sf"
+  meta: "{outdir}/aux_info/meta_info.json"

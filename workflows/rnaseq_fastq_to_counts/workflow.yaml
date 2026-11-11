@@ -1,0 +1,16 @@
+id: rnaseq_fastq_to_counts
+description: >
+  Paired/single-end RNA-seq FASTQ -> fastp trimming -> STAR alignment -> featureCounts gene counts.
+  Produces a gene x sample count matrix (counts.tsv) ready for confounder_check and differential_expression.
+engines:
+  snakemake: Snakefile
+  nextflow: main.nf
+params:
+  samplesheet: {type: path, required: true, description: "TSV with columns sample, r1, r2 (r2 may be empty)"}
+  genome_dir: {type: path, required: true, description: "prebuilt STAR index"}
+  annotation: {type: path, required: true, description: "GTF"}
+  strandedness: {type: int, default: 0}
+outputs:
+  counts: "{outdir}/counts.tsv"
+  multiqc_inputs: "{outdir}/qc"
+qc_parser: rnaseq_workflow

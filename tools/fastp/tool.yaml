@@ -1,0 +1,28 @@
+id: fastp
+name: fastp
+category: qc
+description: Adapter/quality trimming and read QC for FASTQ (single or paired end). Produces fastp.json used by the QC judgment.
+binary: fastp
+conda: bioconda::fastp=0.23.4
+container: null   # set to a pinned biocontainer image, e.g. quay.io/biocontainers/fastp:<tag>
+command:
+  - fastp
+  - -i
+  - "{reads_r1}"
+  - -o
+  - "{outdir}/trimmed_R1.fastq.gz"
+  - if: reads_r2
+    args: ["-I", "{reads_r2}", "-O", "{outdir}/trimmed_R2.fastq.gz"]
+  - -j
+  - "{outdir}/fastp.json"
+  - -h
+  - "{outdir}/fastp.html"
+  - -w
+  - "{threads}"
+inputs:
+  reads_r1: {type: path, required: true}
+  reads_r2: {type: path}
+outputs:
+  trimmed_r1: "{outdir}/trimmed_R1.fastq.gz"
+  json: "{outdir}/fastp.json"
+qc_parser: fastp

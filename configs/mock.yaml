@@ -1,0 +1,13 @@
+# Offline demo/test config: deterministic mock LLM, local compute, no network.
+mode: local
+workspace: ./runs
+state_dir: ./state
+tools_dir: ./tools
+workflows_dir: ./workflows
+llm:
+  premium: {provider: mock, model: mock}
+  budget: {provider: mock, model: mock}
+compute: {backend: local, cores: 2, memory_gb: 4}
+memory: {backend: local, path: ./state/memory}
+hitl: {approval_policy: risky}
+graph: {tot_branches: 3}

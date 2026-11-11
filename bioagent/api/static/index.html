@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bioagent console</title>
+<style>
+:root{--bg:#f6f7f5;--panel:#fff;--ink:#1d2321;--mute:#5d6964;--line:#d9dfdb;--accent:#1f6f5c;--warn:#a35b00;--bad:#a8332f;--ok:#1f6f3a;--code:#eef1ef}
+@media (prefers-color-scheme:dark){:root{--bg:#121614;--panel:#1a201d;--ink:#e3e9e6;--mute:#93a19a;--line:#2c3531;--accent:#5fc2a6;--warn:#e0a24a;--bad:#e2716b;--ok:#6fcf8f;--code:#202825}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:baseline}
+header h1{font-size:16px;margin:0;letter-spacing:.02em}header span{color:var(--mute)}
+main{display:grid;grid-template-columns:300px 1fr 380px;gap:12px;padding:12px;height:calc(100vh - 50px)}
+@media (max-width:1100px){main{grid-template-columns:1fr;height:auto}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;min-height:0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:4px 0 8px}
+.run{padding:8px;border-radius:6px;cursor:pointer;border:1px solid transparent}.run:hover{border-color:var(--line)}
+.run.sel{border-color:var(--accent)}.run small{display:block;color:var(--mute)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid var(--line);margin-left:4px}
+.tag.done{color:var(--ok)}.tag.failed,.tag.error{color:var(--bad)}.tag.wait{color:var(--warn)}
+#events{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.ev{padding:4px 6px;border-bottom:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.ev .k{color:var(--accent);font-weight:600}.ev.thought{background:var(--code)}.ev.err{color:var(--bad)}
+textarea{width:100%;min-height:150px;font:12px ui-monospace,monospace;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px}
+input{width:100%;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+button.secondary{background:transparent;color:var(--ink);border:1px solid var(--line)}button.bad{background:var(--bad)}
+.approval{border:2px solid var(--warn);border-radius:8px;padding:10px;margin-bottom:10px}
+pre{background:var(--code);padding:8px;border-radius:6px;overflow:auto;font-size:12px;max-height:260px}
+table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid var(--line);padding:4px;text-align:left;vertical-align:top}
+.row{display:flex;gap:6px;margin-top:6px}
+</style>
+</head>
+<body>
+<header><h1>bioagent console</h1><span id="hdr">cognitive graph · compute graph · human-in-the-loop</span></header>
+<main>
+<section>
+  <h2>Runs</h2><div id="runs"></div>
+  <h2 style="margin-top:16px">New run (task JSON)</h2>
+  <textarea id="task">{
+  "goal": "Identify genes differentially expressed between treated and control, controlling for technical artefacts.",
+  "analysis_type": "rnaseq_de",
+  "inputs": {"counts": "examples/synthetic/counts.tsv", "metadata": "examples/synthetic/metadata.tsv"},
+  "condition_column": "condition",
+  "contrast": ["treated", "control"]
+}</textarea>
+  <div class="row"><button onclick="startRun()">Start</button></div>
+  <h2 style="margin-top:16px">Memory (lessons)</h2><div id="lessons"></div>
+</section>
+<section><h2>Live trace <span id="cur"></span></h2><div id="events"></div></section>
+<section><div id="approval"></div><h2>Blackboard</h2><div id="bb">Select a run.</div></section>
+</main>
+<script>
+let current=null, ws=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+async function api(p,opt){const r=await fetch(p,opt);if(!r.ok)throw new Error(await r.text());return r.headers.get("content-type")?.includes("json")?r.json():r.text()}
+async function loadRuns(){
+  const runs=await api("/api/runs");
+  $("runs").innerHTML=runs.map(r=>`<div class="run ${r.run_id===current?"sel":""}" onclick="select('${r.run_id}')">
+    <b>${r.run_id}</b><span class="tag ${r.awaiting_approval?"wait":r.status}">${r.awaiting_approval?"needs approval":r.live?"running":r.status}</span>
+    <small>${esc(r.goal).slice(0,90)}</small></div>`).join("")||"<small>No runs yet.</small>";
+}
+async function loadLessons(){
+  const ls=await api("/api/lessons");
+  $("lessons").innerHTML=ls.map(l=>`<div class="ev"><span class="tag">${l.status}</span> ${esc(l.text)}
+   ${l.status==="candidate"?`<div class="row"><button class="secondary" onclick="setLesson('${l.lesson_id}','validated')">validate</button><button class="secondary" onclick="setLesson('${l.lesson_id}','rejected')">reject</button></div>`:""}</div>`).join("")||"<small>Empty.</small>";
+}
+async function setLesson(id,s){await api(`/api/lessons/${id}/status`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({status:s})});loadLessons()}
+async function startRun(){
+  let task; try{task=JSON.parse($("task").value)}catch(e){alert("Invalid JSON: "+e);return}
+  const r=await api("/api/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({task})});
+  setTimeout(()=>select(r.run_id),300);
+}
+function fmt(e){
+  const skip=new Set(["seq","ts","run_id","event","backlog"]);
+  if(e.event==="thought")return `<span class="k">[${e.node}] ${e.kind}</span> ${esc(e.text)}`;
+  if(e.event==="transition")return `<span class="k">${e.src} → ${e.dst}</span> cycle ${e.cycle}`;
+  if(e.event==="llm_call")return `<span class="k">llm</span> ${e.node} ${e.task_class} · ${e.tier} · ${e.model} · ${e.tokens_in}/${e.tokens_out} tok${e.error?" · ERROR "+esc(e.error).slice(0,200):""}`;
+  if(e.event==="judgment")return `<span class="k">judgment</span> ${esc(e.question)} → rule=${e.rule} llm=${e.llm} <b>final=${e.final}</b>`;
+  const rest=Object.fromEntries(Object.entries(e).filter(([k])=>!skip.has(k)));
+  return `<span class="k">${e.event}</span> ${esc(JSON.stringify(rest)).slice(0,600)}`;
+}
+function addEvent(e){
+  const d=document.createElement("div");
+  d.className="ev"+(e.event==="thought"?" thought":"")+(/error|failed|inadmissible/.test(e.event)?" err":"");
+  d.innerHTML=fmt(e);$("events").appendChild(d);d.scrollIntoView({block:"end"});
+  if(e.event==="approval_required")showApproval(e);
+  if(["transition","run_finished","approval","job_finished"].includes(e.event)){loadBB();loadRuns()}
+  if(e.event==="lessons_written")loadLessons();
+}
+function showApproval(p){
+  $("approval").innerHTML=`<div class="approval"><h2>Approval required — ${esc(p.stage)}</h2><div>${esc(p.reason)}</div>
+   <pre>${esc(JSON.stringify(p.pipeline,null,2))}</pre><input id="cmt" placeholder="comment (required to reject)">
+   <div class="row"><button onclick="decide('approved')">Approve</button><button class="bad" onclick="decide('rejected')">Reject</button></div></div>`;
+}
+async function decide(d){
+  await api(`/api/runs/${current}/approve`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:d,comment:$("cmt").value})});
+  $("approval").innerHTML="";
+}
+async function loadBB(){
+  if(!current)return;
+  let r;try{r=await api(`/api/runs/${current}`)}catch(e){$("bb").textContent="waiting for first checkpoint…";return}
+  const b=r.blackboard;
+  if(r.awaiting_approval&&!$("approval").innerHTML)showApproval(r.awaiting_approval);
+  const j=b.judgments.map(x=>`<tr><td>${esc(x.question)}</td><td>${x.rule_answer}</td><td>${x.llm_verdict?.answer}</td><td><b>${x.final_answer}</b></td></tr>`).join("");
+  const plans=b.candidate_plans.map(p=>`<tr><td>${esc(p.title)}${b.plan&&p.plan_id===b.plan.plan_id?" ✓":""}</td><td>${p.score}</td></tr>`).join("");
+  $("bb").innerHTML=`<table><tr><th>phase</th><td>${b.phase} → ${b.next_phase}</td></tr>
+   <tr><th>stage</th><td>${b.plan?(b.stage_index+1)+"/"+b.plan.stages.length:"-"}</td></tr>
+   <tr><th>cost</th><td>$${b.cost.usd.toFixed(4)} · ${JSON.stringify(b.cost.calls_by_tier)}</td></tr>
+   <tr><th>adjustments</th><td>${esc(JSON.stringify(b.design_adjustments))}</td></tr>
+   <tr><th>caveats</th><td>${b.caveats.map(esc).join("<br>")||"-"}</td></tr>
+   <tr><th>errors</th><td>${b.errors.map(esc).join("<br>")||"-"}</td></tr>
+   ${Object.keys(b.evaluation||{}).length?`<tr><th>ground truth</th><td>${esc(JSON.stringify(b.evaluation))}</td></tr>`:""}</table>
+   <h2 style="margin-top:12px">Plans (ToT)</h2><table>${plans}</table>
+   <h2 style="margin-top:12px">Judgments</h2><table><tr><th>question</th><th>rule</th><th>llm</th><th>final</th></tr>${j}</table>
+   ${b.report_paths?.markdown?`<div class="row"><button class="secondary" onclick="window.open('/api/runs/${current}/report')">Open report</button></div>`:""}`;
+}
+function select(id){
+  current=id;$("cur").textContent="· "+id;$("events").innerHTML="";$("approval").innerHTML="";
+  if(ws)ws.close();
+  ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws/runs/"+id);
+  ws.onmessage=m=>addEvent(JSON.parse(m.data));
+  loadRuns();loadBB();
+}
+loadRuns();loadLessons();setInterval(loadRuns,5000);
+</script>
+</body>
+</html>

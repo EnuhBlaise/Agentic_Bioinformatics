@@ -1,0 +1,31 @@
+id: star_align
+name: STAR aligner
+category: alignment
+description: Splice-aware alignment of RNA-seq reads to a prebuilt STAR genome index; outputs coordinate-sorted BAM.
+binary: STAR
+conda: bioconda::star=2.7.11b
+command:
+  - STAR
+  - --runThreadN
+  - "{threads}"
+  - --genomeDir
+  - "{genome_dir}"
+  - --readFilesIn
+  - "{reads_r1}"
+  - if: reads_r2
+    args: ["{reads_r2}"]
+  - --readFilesCommand
+  - zcat
+  - --outSAMtype
+  - BAM
+  - SortedByCoordinate
+  - --outFileNamePrefix
+  - "{outdir}/"
+inputs:
+  genome_dir: {type: path, required: true}
+  reads_r1: {type: path, required: true}
+  reads_r2: {type: path}
+outputs:
+  bam: "{outdir}/Aligned.sortedByCoord.out.bam"
+  log: "{outdir}/Log.final.out"
+qc_parser: star

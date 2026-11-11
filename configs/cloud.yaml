@@ -1,0 +1,40 @@
+# Cloud mode: hosted premium model for judgment, cheap model for parsing/formatting, Nextflow on AWS Batch.
+# export ANTHROPIC_API_KEY=...  DEEPSEEK_API_KEY=...  NXF_AWS_QUEUE=...  AWS_REGION=...
+# Model ids and prices change; check the providers' current docs before relying on the cost ledger.
+mode: cloud
+workspace: ./runs
+state_dir: ./state
+tools_dir: ./tools
+workflows_dir: ./workflows
+llm:
+  premium:
+    provider: anthropic
+    model: claude-opus-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    temperature: 0.2
+    max_tokens: 8192
+    cost_in_per_mtok: 5.0      # placeholder: set from current pricing
+    cost_out_per_mtok: 25.0    # placeholder: set from current pricing
+  budget:
+    provider: openai_compatible
+    model: deepseek-chat
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    cost_in_per_mtok: 0.3      # placeholder
+    cost_out_per_mtok: 1.2     # placeholder
+  run_budget_usd: 5.0
+compute:
+  backend: nextflow
+  nextflow_profile: awsbatch
+  nextflow_work_dir: s3://YOUR-BUCKET/bioagent-work
+  webhook_base_url: https://YOUR-API-HOST     # Nextflow -with-weblog posts progress here
+  cores: 8
+memory:
+  backend: local
+  path: ./state/memory
+observability:
+  phoenix: false
+  langsmith: false   # LangGraph-native tracing: set LANGSMITH_TRACING=true and LANGSMITH_API_KEY
+  wandb: false
+hitl:
+  approval_policy: risky

@@ -1,0 +1,24 @@
+OUT = config["outdir"]
+rule all:
+    input: f"{OUT}/quast/report.tsv"
+
+rule fastp:
+    input: r1=config["reads_r1"], r2=config["reads_r2"]
+    output: r1=f"{OUT}/trim/R1.fq.gz", r2=f"{OUT}/trim/R2.fq.gz", js=f"{OUT}/qc/fastp.json"
+    threads: 4
+    conda: "envs/fastp.yaml"
+    shell: "fastp -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2} -j {output.js} -h /dev/null -w {threads}"
+
+rule spades:
+    input: r1=f"{OUT}/trim/R1.fq.gz", r2=f"{OUT}/trim/R2.fq.gz"
+    output: f"{OUT}/assembly/contigs.fasta"
+    threads: 8
+    conda: "envs/spades.yaml"
+    shell: "spades.py --isolate -1 {input.r1} -2 {input.r2} -t {threads} -m {config[memory_gb]} -o {OUT}/assembly"
+
+rule quast:
+    input: f"{OUT}/assembly/contigs.fasta"
+    output: f"{OUT}/quast/report.tsv"
+    threads: 4
+    conda: "envs/quast.yaml"
+    shell: "quast.py {input} -o {OUT}/quast -t {threads}"

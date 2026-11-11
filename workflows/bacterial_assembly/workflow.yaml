@@ -1,0 +1,16 @@
+id: bacterial_assembly
+description: >
+  Paired-end Illumina bacterial isolate -> fastp -> SPAdes (--isolate) -> QUAST. Outputs contigs and QUAST report.tsv.
+engines:
+  snakemake: Snakefile
+  nextflow: main.nf
+params:
+  reads_r1: {type: path, required: true}
+  reads_r2: {type: path, required: true}
+  sample: {type: str, default: isolate}
+  memory_gb: {type: int, default: 16}
+outputs:
+  contigs: "{outdir}/assembly/contigs.fasta"
+  quast_report: "{outdir}/quast/report.tsv"
+  fastp_json: "{outdir}/qc/fastp.json"
+qc_parser: assembly_workflow

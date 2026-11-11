@@ -1,0 +1,38 @@
+# Air-gapped workstation. mode=local refuses any non-local endpoint at startup.
+# Prereqs: `ollama serve`; `ollama pull qwen2.5:7b`; `ollama pull llama3.3:70b` (or deepseek-r1:70b / a smaller judge
+# if VRAM is limited: a 70B model at 4-bit needs ~40 GB; on a 24 GB GPU use a 32B model such as qwen2.5:32b).
+mode: local
+workspace: ./runs
+state_dir: ./state
+tools_dir: ./tools
+workflows_dir: ./workflows
+llm:
+  premium:
+    provider: ollama
+    model: qwen2.5:32b
+    base_url: http://localhost:11434
+    temperature: 0.1
+    max_tokens: 4096
+    timeout_s: 600
+  budget:
+    provider: ollama
+    model: qwen2.5:7b
+    base_url: http://localhost:11434
+    temperature: 0.0
+  run_budget_usd: 0     # local models cost 0; the cap never triggers
+compute:
+  backend: local        # or snakemake for registry workflows
+  cores: 8
+  memory_gb: 32
+  use_containers: false
+memory:
+  backend: local        # or chroma (pip install 'bioagent[chroma]')
+  path: ./state/memory
+  embedding: hashing    # or ollama with nomic-embed-text
+observability:
+  phoenix: false        # true + `phoenix serve` -> http://localhost:6006
+hitl:
+  approval_policy: risky
+graph:
+  tot_branches: 3
+  judgment_combination: conservative
