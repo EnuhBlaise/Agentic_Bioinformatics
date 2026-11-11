@@ -1,6 +1,6 @@
 # bioagent
 
-A modular bioinformatics agent built from `architecture_specification.md`. It keeps reasoning (a LangGraph
+A modular bioinformatics agent . It keeps reasoning (a LangGraph
 **cognitive graph**) separate from compute (a **compute graph** of subprocess, Snakemake or Nextflow jobs). State is
 typed, judgment is explicit and backed by evidence, there are human-in-the-loop approvals and a tamper-evident
 provenance log, and one config switches between cloud and air-gapped local operation.
